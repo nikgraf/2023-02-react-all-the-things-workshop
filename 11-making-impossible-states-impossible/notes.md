@@ -1,0 +1,171 @@
+## Making impossible states impossible
+
+Source:
+
+- "Making Impossible States Impossible" by Richard Feldman https://www.youtube.com/watch?v=IcgmSRJHu_8
+- "Making illegal states unrepresentable" by Yaron Minsky in 2010!!! https://blog.janestreet.com/effective-ml-video/
+
+# Practical comparison between useState vs useReducer
+
+## Let's look at an example
+
+A request response can either be: Loading or Successful or Error
+
+```
+const [loading, setLoading] = React.useState(false)
+const [response, setResponse] = React.useState(null)
+const [errorMessage, setErrorMessage] = React.useState(null)
+```
+
+```js
+async function handleSubmit(values) {
+  try {
+    const responseJson = await fetch("/projects").then((r) => r.json());
+    setResponse(responseJson);
+    setErrorMessage(null);
+    setLoading(false);
+  } catch (error) {
+    setErrorMessage("Something went wrong!");
+    setLoading(false);
+  }
+}
+```
+
+Loading
+
+```js
+loading === true;
+response === null;
+error === null;
+```
+
+Error
+
+```js
+loading === false;
+response === null;
+error === { message: "Something went wrong" };
+```
+
+Success
+
+```js
+loading === false;
+response === { user: { name: "nikgraf" } };
+error === null;
+```
+
+Invalid State!
+
+```js
+loading === true;
+response === { user: { name: "nikgraf" } };
+error === { message: "Something went wrong" };
+```
+
+Another invalid state
+
+```js
+loading === true;
+response === { user: { name: "nikgraf" } };
+error === null;
+```
+
+## useReducer never allows for impossible states
+
+```js
+const [state, dispatch] = React.useReducer(reducer, {
+  loading: true,
+  response: null,
+  error: null,
+});
+
+function reducer(state, action) {
+  switch (action.type) {
+    case "SUCCESS": {
+      return {
+        loading: false,
+        error: null,
+        response: action.response,
+      };
+    }
+    case "ERROR": {
+      return {
+        loading: false,
+        response: null,
+        error: action.error,
+      };
+    }
+    default: {
+      return state;
+    }
+  }
+}
+```
+
+## Disciminated Unions
+
+```ts
+interface Square {
+  kind: "square";
+  size: number;
+}
+
+interface Rectangle {
+  kind: "rectangle";
+  width: number;
+  height: number;
+}
+
+interface Circle {
+  kind: "circle";
+  radius: number;
+}
+
+type Shape = Square | Rectangle | Circle;
+
+function area(s: Shape) {
+  if (s.kind === "square") {
+    return s.size * s.size;
+  } else if (s.kind === "rectangle") {
+    return s.width * s.height;
+  } else if (s.kind === "circle") {
+    return Math.PI * s.radius ** 2;
+  } else {
+    // Okay once more
+    const _exhaustiveCheck: never = s;
+  }
+}
+```
+
+- https://basarat.gitbook.io/typescript/type-system/discriminated-unions
+
+Works great with Redux https://basarat.gitbook.io/typescript/type-system/discriminated-unions#redux
+
+## Use it for component props
+
+e.g.
+
+```tsx
+<Button variant="primary" size="lg|md">
+<Button variant="secondary" size="md|sm" color="green">
+```
+
+```tsx
+interface PrimaryProps {
+  variant: "primary";
+  size: "lg" | "md";
+}
+
+interface SecondaryProps {
+  variant: "secondary";
+  size: "sm" | "md";
+  color: string;
+}
+
+type ButtonProps = PrimaryProps | SecondaryProps;
+
+const Button: React.FC<ButtonProps> = (props) => {
+  …
+};
+```
